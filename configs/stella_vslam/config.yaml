@@ -1,0 +1,27 @@
+Camera:
+  name: MINOS equirectangular
+  setup: monocular
+  model: equirectangular
+  cols: 5760
+  rows: 2880
+  fps: 24
+  color_order: RGB
+
+
+
+Feature:
+  max_num_keypoints: 4000
+  scale_factor: 1.2
+  num_levels: 8
+  ini_fast_threshold: 20
+  min_fast_threshold: 7
+
+LoopDetector:
+  enabled: true
+  reject_by_graph_distance: true
+  min_distance_on_graph: 50
+  min_continuity: 2
+  num_matches_thr: 10
+  num_final_matches_threshold: 20
+  num_optimized_inliers_thr: 15
+  use_fixed_seed: true

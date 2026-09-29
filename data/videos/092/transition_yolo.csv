@@ -1,0 +1,9 @@
+frame_id,direction,method
+984,OUT_TO_IN,objects_detection
+1463,IN_TO_OUT,objects_detection
+1554,OUT_TO_IN,objects_detection
+1135,OUT_TO_IN,building_area
+1164,IN_TO_OUT,building_area
+1176,OUT_TO_IN,building_area
+1247,IN_TO_OUT,building_area
+1368,OUT_TO_IN,building_area
