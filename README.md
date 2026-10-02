@@ -9,6 +9,17 @@ confirms a transition only when at least 2 sources agree, cuts the video
 into indoor clips, and runs floor-plan estimation (direct_360_FPE) on each
 clip.
 
+## Demo
+
+![Indoor/outdoor classification on video 010](docs/demo_010.gif)
+
+Video 010, about 13 s around entering and leaving a building. The top row shows
+each method's per-frame decision (objects_detection, building_area, SegFormer),
+then `=` the pipeline's **FINAL** decision. Boxes are the YOLO detections the
+methods use: green = indoor-like objects, orange = outdoor-like, blue =
+House/Building. Made with `transition_detection/visualize_classifications.py`
+(see [Checking the classifications on a video](#checking-the-classifications-on-a-video)).
+
 ---
 
 ## Repository layout
@@ -56,7 +67,7 @@ overridden with the environment variable shown (read by `dpfe_paths.py`).
 | LGT-Net | `~/LGT-Net` | `LGTNET_DIR` | [zhigangjiang/LGT-Net](https://github.com/zhigangjiang/LGT-Net) @ `0045359` |
 | stella_vslam (library) | installed to `/usr/local/lib` | – | [stella-cv/stella_vslam](https://github.com/stella-cv/stella_vslam) @ `8ac1be4` |
 | stella_vslam_examples `run_image_slam` | `~/stella_vslam_examples/build/run_image_slam` | `STELLA_SLAM_BIN` | [stella-cv/stella_vslam_examples](https://github.com/stella-cv/stella_vslam_examples) @ `defc69e` |
-| ORB vocabulary | `~/orb_vocab.fbow` | `ORB_VOCAB` | shipped with stella_vslam |
+| ORB vocabulary | `~/orb_vocab.fbow` | `ORB_VOCAB` | [stella-cv/FBoW_orb_vocab](https://github.com/stella-cv/FBoW_orb_vocab) |
 | venv interpreter | `~/venv/bin/python` | `DFPE_VENV_PY` | see below |
 
 ### Model checkpoints
@@ -386,3 +397,36 @@ that is not in the repo.
   `direct_360_FPE/slam_output/` and `direct_360_FPE/mp3d_fpe_dataset/`.
 - `experiments/room_overlap_clipping/clip_room_overlaps.py`: removes overlaps
   between DFPE room polygons with Shapely (tried on video033/035 with LGT-Net).
+
+---
+
+## Original repositories and resources
+
+### Used by the pipeline
+
+| Repository | What it is used for here |
+|---|---|
+| [EnriqueSolarte/direct_360_FPE](https://github.com/EnriqueSolarte/direct_360_FPE) | Floor-plan estimation (DFPE); a modified copy is in `direct_360_FPE/` |
+| [sunset1995/HorizonNet](https://github.com/sunset1995/HorizonNet) | Room-layout model (default) |
+| [zhigangjiang/LGT-Net](https://github.com/zhigangjiang/LGT-Net) | Room-layout model (alternative) |
+| [stella-cv/stella_vslam](https://github.com/stella-cv/stella_vslam) | Visual SLAM library (camera trajectory) |
+| [stella-cv/stella_vslam_examples](https://github.com/stella-cv/stella_vslam_examples) | `run_image_slam`, the SLAM program the pipeline calls |
+| [stella-cv/FBoW_orb_vocab](https://github.com/stella-cv/FBoW_orb_vocab) | ORB vocabulary file for SLAM |
+| [ultralytics/ultralytics](https://github.com/ultralytics/ultralytics) | YOLO object detection (`yolov8l-oiv7.pt`, Open Images V7 classes) |
+| [zhengxuJosh/360SFUDA](https://github.com/zhengxuJosh/360SFUDA) | Panoramic semantic segmentation for Stage B (SegFormer-B2 weights `city_b2_52.99.pth`) |
+| [NVlabs/SegFormer](https://github.com/NVlabs/SegFormer) | The segmentation architecture behind the 360SFUDA weights |
+
+### Datasets
+
+| Resource | What it is used for here |
+|---|---|
+| [MP3D-FPE (HuggingFace)](https://huggingface.co/datasets/EnriqueSolarte/mp3d_fpe) | Reference scene `1LXtFkjw3qL` for the SLAM/scale experiments in `experiments/slam_scale_study/` |
+
+### Explored during the project (not used by the final pipeline)
+
+| Repository | |
+|---|---|
+| [EnriqueSolarte/robust_360_8PA](https://github.com/EnriqueSolarte/robust_360_8PA) | Camera-pose estimation for 360° images |
+| [DepthAnything/Video-Depth-Anything](https://github.com/DepthAnything/Video-Depth-Anything) | Video depth estimation |
+| [mvlchallenge/mvl_toolkit](https://github.com/mvlchallenge/mvl_toolkit) | Multi-view layout toolkit |
+| [EnriqueSolarte/ray_casting_mlc](https://github.com/EnriqueSolarte/ray_casting_mlc) | Multi-view layout consistency (self-training) |
