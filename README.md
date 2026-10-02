@@ -23,25 +23,7 @@ Video 010, about 13 s around entering and leaving a building. The top row shows
 each method's per-frame decision, then `=` the **FINAL** decision. Boxes are
 the YOLO detections the methods use: green = indoor-like objects, orange =
 outdoor-like, blue = House/Building. Made with `visualize_classifications.py`
-(see [Classification video](#classification-video)).
-
----
-
-## Repository layout
-
-```
-pipeline_lock_direction.py     Step 1: YOLO detection + the two YOLO methods -> transitions.csv
-merge_transitions.py           Step 3: combine all sources (>= 2 agree) -> transitions_confirmed.csv
-visualize_classifications.py   video showing every method's per-frame label + FINAL
-object_detection/              per-frame classifiers and transition debouncing
-                               (+ standalone annotation tools)
-extract_classes_yolo/          per-frame OIV7 class summaries
-data/videos/{id}/              per video: transition_yolo.csv, transition_sfuda.csv,
-                               transitions_confirmed.csv (23 Technion videos, 081–107)
-docs/                          demo GIF
-```
-
-Step 2 (SegFormer) runs from the 360SFUDA project (see below).
+(see [Visualisation](#visualisation-classification-video)).
 
 ---
 
@@ -74,7 +56,6 @@ mkdir -p data/videos/$ID
 cp ~/pipeline_output/$(basename "$VIDEO" .mp4)/transitions.csv data/videos/$ID/transition_yolo.csv
 ```
 
-Inference is skipped for any video whose `oiv7_detections.csv` already exists.
 For each video it writes to `{--output_dir}/{video_stem}/` (default `~/pipeline_output/`):
 - `oiv7_detections.csv`: raw per-frame detections
 - `indoor_outdoor_classification.csv`: "building_area" labels
@@ -107,7 +88,7 @@ Columns: `direction, frame_min, frame_max, sources, n_sources`. An empty file
 (header only) means the sources never agreed, i.e. no confirmed transition.
 This file is what the [floor-plan project](https://github.com/raquelgold/dfpe) needs.
 
-### Classification video
+### Visualisation: classification video
 
 Renders the video with a big INDOOR/OUTDOOR block per method, then `= FINAL`,
 plus the YOLO boxes the methods use:
@@ -124,92 +105,6 @@ plus the YOLO boxes the methods use:
   `--sfuda_csv` not needed).
 - `--only others`: objects_detection + SegFormer with the indoor/outdoor-like
   boxes. FINAL still uses all 3 sources.
-
----
-
-## How each step decides
-
-### `pipeline_lock_direction.py`
-
-1. Loads `yolov8l-oiv7.pt` once and streams frames with `cv2.VideoCapture`.
-2. Runs `model.predict(frame, conf=0.01, iou=0.7)`. The near-zero threshold is
-   deliberate: the classifiers below do their own filtering.
-3. Writes `oiv7_detections.csv`: `frame_id, class_id, class_name, conf, x1, y1, x2, y2, area_pct`
-   (`area_pct` = bbox area / frame area × 100).
-4. Calls `find_indoor_area` → `find_indoor_objects` → `detect_transitions`.
-
-### `object_detection/find_indoor_area.py` ("building_area")
-
-A frame is **indoor** iff some detection has `class_name` ∈ {House, Building},
-`area_pct > 98.0` (`AREA_PCT_THRESHOLD`; the docstring's "90%" is stale) and
-`conf >= 0.25`. It fires only when a wall fills almost the whole frame: high
-precision, low recall. No temporal smoothing.
-
-### `object_detection/find_indoor_objects.py` ("objects_detection")
-
-Counts detections with `conf >= 0.1` against two sets:
-
-- `INDOOR_LIKE`: Chair, Couch, Bed, Table, Toilet, Sink, Refrigerator, TV,
-  Laptop, Microwave, Oven, Closet, Cabinetry, Bathtub, Shower, Mirror, Window,
-  Door, Stairs, Furniture, …
-- `OUTDOOR_LIKE`: Tree, Car, Street light, Stop sign, Traffic light/sign, Road,
-  Bus, Truck, Bicycle.
-
-More indoor objects → `indoor`; more outdoor → `outdoor`; a tie or no
-qualifying objects → **the previous frame's label is carried forward** (frame 0
-starts as `outdoor`).
-
-### `object_detection/detect_transitions.py`
-
-Runs over both label files. When the label changes at frame `i`, the next
-`MIN_RUN = 10` frames must all hold the new label to confirm a transition
-(`OUT_TO_IN` / `IN_TO_OUT`) at frame `i`.
-
-### SegFormer (360SFUDA `suspicious_frames.py`)
-
-Per frame: switches to indoor when sky, vegetation and cars are all low, and
-back to outdoor when any is high (sky or vegetation > 15%, cars > 5%). Then
-3-second smoothing removes short flickers.
-
-### `merge_transitions.py`
-
-- Chain-clusters same-direction events: an event joins a cluster if it is
-  within `RADIUS = 100` frames of the cluster's last event.
-- A cluster is confirmed if it has `>= MIN_SOURCES = 2` distinct sources.
-  Keep this at 2: 3 silently drops real 2-source detections.
-- `_resolve_overlaps()` collapses near-identical opposite-direction clusters
-  (the same real crossing seen both ways): prefer the side sfuda voted for,
-  then more sources, then the tighter frame span.
-
-**FINAL** (in the classification video) comes from `compute_indoor_segments()`,
-which turns the confirmed transitions into indoor frame ranges with
-conservative bounds: indoors starts at the end of an `OUT_TO_IN` cluster,
-ends just before the start of an `IN_TO_OUT` cluster, and a first `IN_TO_OUT`
-means the video starts indoors. So FINAL is not a per-frame majority vote:
-it switches only at confirmed transitions.
-
-### Data flow
-
-```
-video ──YOLO(conf=0.01)──▶ oiv7_detections.csv
-                              ├─▶ find_indoor_area    (>98% area, House/Building, conf≥0.25)
-                              └─▶ find_indoor_objects (count-based, carry-forward on ties)
-                                        both ─▶ detect_transitions (10-frame debounce) ─▶ transition_yolo.csv
-video ──SegFormer (360SFUDA)─────────────────────────────────────────────────────────▶ transition_sfuda.csv
-
-transition_yolo.csv + transition_sfuda.csv ─▶ merge_transitions (≥2 sources within 100 frames)
-                                                    ─▶ transitions_confirmed.csv ─▶ floor-plan project
-```
-
----
-
-## Known limitations
-
-- **SegFormer can read a covered ceiling as sky.** Under a canopy at a
-  building entrance (video 010, frame 420) it reported 38% sky, so it stays
-  OUTDOOR there.
-- **YOLO results drift slightly between library/driver versions.** Re-running
-  video 097 in September vs. July shifted its transitions by 3–16 frames.
 
 ---
 
