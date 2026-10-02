@@ -1,0 +1,4 @@
+direction,frame_min,frame_max,sources,n_sources
+OUT_TO_IN,2509,2596,"building_area,objects_detection,sfuda",3
+OUT_TO_IN,4432,4529,"building_area,objects_detection",2
+IN_TO_OUT,5089,5177,"building_area,objects_detection,sfuda",3
